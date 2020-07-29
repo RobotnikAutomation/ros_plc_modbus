@@ -19,7 +19,8 @@ private:
     ros::Subscriber coils_write;
 
     std::vector<int> regs_addr;
-    std::vector<int> coils_addr;
+    std::vector<int> coils_read_addr;
+    std::vector<int> coils_read_n_write_addr;
 
     std_msgs::UInt16MultiArray regs_val;
     std_msgs::ByteMultiArray coils_val;
@@ -52,8 +53,11 @@ plc_modbus_manager::plc_modbus_manager() {
     if (!node.getParam("plc_modbus_node/regs_addr", regs_addr)) {
         ROS_WARN("No reg addrs given!");
     }
-    if (!node.getParam("plc_modbus_node/coils_addr", coils_addr)) {
-        ROS_WARN("No coil addrs given!");
+    if (!node.getParam("plc_modbus_node/coils_read_addr", coils_read_addr)) {
+        ROS_WARN("No only read coil addrs given!");
+    }
+    if (!node.getParam("plc_modbus_node/coils_read_n_write_addr", coils_read_n_write_addr)) {
+        ROS_WARN("No read/write coil addrs given!");
     }
 
     ROS_INFO("Connecting to modbus device on %s/%d", ip_address.c_str(), port);
@@ -90,10 +94,19 @@ plc_modbus_manager::plc_modbus_manager() {
             regs_read.publish(regs_val);
         }
 
-        for (int i = 0; i < coils_addr.size(); i++) {
+        for (int i = 0; i < coils_read_addr.size(); i++) {
             uint8_t temp[1] = {0};
-            if (modbus_read_bits(plc, coils_addr.at(i), 1, temp) == -1) {
-                ROS_ERROR("Unable to read coil addr:%d", coils_addr.at(i));
+            if (modbus_read_bits(plc, coils_read_addr.at(i), 1, temp) == -1) {
+                ROS_ERROR("Unable to read coil addr:%d", coils_read_addr.at(i));
+                ROS_ERROR("%s", modbus_strerror(errno));
+            } else {
+                coils_val.data.push_back(temp[0]);
+            }
+        }
+        for (int i = 0; i < coils_read_n_write_addr.size(); i++) {
+            uint8_t temp[1] = {0};
+            if (modbus_read_bits(plc, coils_read_n_write_addr.at(i), 1, temp) == -1) {
+                ROS_ERROR("Unable to read coil addr:%d", coils_read_n_write_addr.at(i));
                 ROS_ERROR("%s", modbus_strerror(errno));
             } else {
                 coils_val.data.push_back(temp[0]);
@@ -130,18 +143,18 @@ void plc_modbus_manager::regs_callBack(const std_msgs::UInt16MultiArray::ConstPt
 }
 
 void plc_modbus_manager::coils_callBack(const std_msgs::ByteMultiArray::ConstPtr &coils_data) {
-    if (coils_data->data.size() != coils_addr.size()) {
-        ROS_ERROR("%d coils to write but %d given!", coils_addr.size(), coils_data->data.size());
+    if (coils_data->data.size() != coils_read_n_write_addr.size()) {
+        ROS_ERROR("%d coils to write but %d given!", coils_read_n_write_addr.size(), coils_data->data.size());
         return;
     }
     for (int i = 0; i < coils_data->data.size(); i++) {
         ROS_DEBUG("regs_out[%d]:%u", i, coils_data->data.at(i));
         uint8_t temp[1] = {coils_data->data.at(i)};
-        if (modbus_write_bits(plc, coils_addr.at(i), 1, temp) == -1) {
-            ROS_ERROR("Modbus coil write failed at addr:%d with value:%u", coils_addr.at(i), coils_data->data.at(i));
+        if (modbus_write_bits(plc, coils_read_n_write_addr.at(i), 1, temp) == -1) {
+            ROS_ERROR("Modbus coil write failed at addr:%d with value:%u", coils_read_n_write_addr.at(i), coils_data->data.at(i));
             ROS_ERROR("%s", modbus_strerror(errno));
         } else {
-            ROS_INFO("Modbus coil write at addr:%d with value:%u", coils_addr.at(i), coils_data->data.at(i));
+            ROS_INFO("Modbus coil write at addr:%d with value:%u", coils_read_n_write_addr.at(i), coils_data->data.at(i));
         }
     }
 }

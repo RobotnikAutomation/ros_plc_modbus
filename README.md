@@ -28,7 +28,8 @@ If you have a set of address [3,56,32,4,7] then when you read from the topic or 
 |port|502|Port for communication with the modbus device|
 |spin_rate|30|The rate ROS will refresh the coil and register read topics in Hz|
 |regs_addr|NULL|An array of register addresses to be written and read from|
-|coils_addr|NULL|An array of coil addresses to be written and read from|
+|coils_read_addr|NULL|An array of coil addresses to be read from|
+|coils_read_n_write_addr|NULL|An array of coil addresses to be written and read from|
 
 ##Topics
 
@@ -45,6 +46,19 @@ This is the current value of the coils (TRUE or FALSE).
 What to set the given register address to.  
 /modbus/coils_write [(std_msgs/ByteMultiArray)](http://docs.ros.org/api/std_msgs/html/msg/ByteMultiArray.html)  
 What to set the given coil address to (TRUE or FALSE).  
+
+#### How to publish on coils
+To publish on more than one coil follow this format:
+
+```
+rostopic pub /modbus/coils_write std_msgs/ByteMultiArray "layout:
+  dim:
+  - label: ''
+    size: 2
+    stride: 0
+  data_offset: 0
+data: [0, 0, 0, 0] "
+```
 
 ##What is Modbus?
 
